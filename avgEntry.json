@@ -1,0 +1,10 @@
+{
+  "WETH": {
+    "totalCostUSD": 0.1,
+    "totalAmount": 0.000040808164897632725
+  },
+  "WBTC": {
+    "totalCostUSD": 0,
+    "totalAmount": 0
+  }
+}
