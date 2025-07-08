@@ -102,7 +102,7 @@ app.post('/webhook', async(req, res) => {
         if (action === 'buy') {
             console.log("🛒 Buy logic triggered");
             console.log("await executeSwap(config, 'buy', redBuyAmount);");
-            //await executeSwap(config, 'buy', redBuyAmount);
+            await executeSwap(config, 'buy', redBuyAmount);
             updateAvgEntry(config.symbol, redBuyAmount, currentPrice);
         } else {
             console.log("📤 Sell logic triggered");
@@ -116,7 +116,7 @@ app.post('/webhook', async(req, res) => {
                 const balance = await token.balanceOf(SAFE_ADDRESS);
                 const amountToSell = Number(balance) * GREEN_SELL_RATIO;
                 console.log(`📤 Eligible to sell ${amountToSell / (10 ** config.decimals)} ${config.symbol}`);
-                //await executeSwap(config, 'sell', amountToSell / (10 ** config.decimals));
+                await executeSwap(config, 'sell', amountToSell / (10 ** config.decimals));
             } else {
                 console.log("📉 Sell threshold not met.");
             }
@@ -205,8 +205,8 @@ async function runDailyCron() {
     const ethAmt = daily * DCA_TOKEN_SPLIT;
     console.log(`🪙 Daily DCA amounts - BTC: $${btcAmt}, ETH: $${ethAmt}`);
 
-    //await executeSwap(TOKENS.BTC, 'buy', btcAmt);
-    //await executeSwap(TOKENS.ETH, 'buy', ethAmt);
+    await executeSwap(TOKENS.BTC, 'buy', btcAmt);
+    await executeSwap(TOKENS.ETH, 'buy', ethAmt);
     updateAvgEntry('WBTC', btcAmt, await getPrice('wrapped-bitcoin'));
     updateAvgEntry('WETH', ethAmt, await getPrice('weth'));
 
