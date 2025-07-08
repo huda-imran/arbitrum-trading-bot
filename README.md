@@ -1,6 +1,6 @@
 # DCA + Candle-Based Trading Bot (with Gnosis Safe Integration)
 
-This Node.js-based trading bot automates token swaps using candle signals, daily DCA (Dollar Cost Averaging), and monthly skimming logic. All swaps are executed securely via Gnosis Safe on Uniswap.
+This Node.js-based trading bot automates token swaps using candle signals, daily DCA (Dollar Cost Averaging), and monthly skimming logic. 
 
 ---
 
