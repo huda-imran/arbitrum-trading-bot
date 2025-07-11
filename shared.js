@@ -9,7 +9,7 @@ const TOKEN_ABI = require('./erc20.json');
 const SAFE_ADDRESS = process.env.SAFE_ADDRESS;
 const RPC_URL = process.env.RPC_URL;
 const PRIVATE_KEY = process.env.SIGNER_PRIVATE_KEY;
-const PAYOUT_WALLET = process.env.PAYOUT_WALLET;
+const PAYOUT_WALLET = process.env.SIGNER_ADDRESS;
 
 const USDC = {
     address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
