@@ -22,7 +22,8 @@ const {
     avgEntryPrice,
     saveAvgEntry,
     dcaState,
-    saveDCAState
+    saveDCAState,
+    checkGasBalance
 } = require('./shared');
 
 const DAILY_DCA_CRON = '0 10 * * *';
@@ -34,6 +35,7 @@ cron.schedule(MONTHLY_SKIM_CRON, runMonthlyCron);
 console.log("⏱️ Cron worker started...");
 
 async function runDailyCron() {
+    await checkGasBalance();
     const provider = new JsonRpcProvider(RPC_URL);
     const usdc = new ethers.Contract(USDC.address, TOKEN_ABI, provider);
     const usdcBal = await usdc.balanceOf(SAFE_ADDRESS);
@@ -58,6 +60,7 @@ async function runDailyCron() {
 }
 
 async function runMonthlyCron() {
+    await checkGasBalance();
     const provider = new JsonRpcProvider(RPC_URL);
     const signer = new ethers.Wallet(PRIVATE_KEY, provider);
     const safeClient = await createSafeClient({ provider: RPC_URL, signer: PRIVATE_KEY, safeAddress: SAFE_ADDRESS });

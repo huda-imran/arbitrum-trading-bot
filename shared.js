@@ -27,6 +27,7 @@ const RED_BUY_RATIO = 0.05;
 const MONTHLY_SKIM_RATIO = 0.0005;
 const SWAP_FEE = 500;
 const SWAP_DEADLINE_SEC = 600;
+const MIN_ETH_THRESHOLD = 0.005; // set threshold
 
 const TOKENS = {
     BTC: {
@@ -61,6 +62,21 @@ let dcaState = fs.existsSync('./dcaState.json')
 function saveDCAState() {
     fs.writeFileSync('./dcaState.json', JSON.stringify(dcaState, null, 2));
 }
+
+async function checkGasBalance() {
+    const provider = new JsonRpcProvider(RPC_URL);
+    const balance = await provider.getBalance(SAFE_ADDRESS);
+    const ethBalance = parseFloat(ethers.formatEther(balance));
+
+
+    if (ethBalance < MIN_ETH_THRESHOLD) {
+        console.log(`⚠️ Low ETH balance on SAFE wallet: ${ethBalance} ETH`);
+        // Optionally send an alert (e.g., email, Telegram, etc.)
+    } else {
+        console.log(`✅ ETH balance on SAFE wallet is healthy: ${ethBalance} ETH`);
+    }
+}
+
 
 async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     console.log(`\n🔁 Starting swap | Action: ${action.toUpperCase()} | Token: ${tokenConfig.symbol} | Amount (USD): $${amountOverrideUSD}`);
@@ -140,6 +156,7 @@ function updateAvgEntry(symbol, costUSD, priceUSD) {
 }
 
 module.exports = {
+    checkGasBalance,
     executeSwap,
     updateAvgEntry,
     TOKENS,

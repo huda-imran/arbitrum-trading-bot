@@ -7,6 +7,7 @@ const fs = require('fs');
 const axios = require('axios');
 const SWAP_ROUTER_ABI = require('./ISwapRouter.json');
 const TOKEN_ABI = require('./erc20.json');
+
 const {
     executeSwap,
     updateAvgEntry,
@@ -18,13 +19,17 @@ const {
     GREEN_SELL_THRESHOLD,
     GREEN_SELL_RATIO,
     avgEntryPrice,
-    saveAvgEntry
+    saveAvgEntry,
+    checkGasBalance,
 } = require('./shared');
 
 const app = express();
 app.use(bodyParser.json());
 
 app.post('/webhook', async (req, res) => {
+
+    await checkGasBalance();
+
     console.log('\n📩 Webhook triggered');
     console.log('🔧 Received payload:', req.body);
 
