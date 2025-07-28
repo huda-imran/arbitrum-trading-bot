@@ -14,7 +14,8 @@ const PAYOUT_WALLET = process.env.SIGNER_ADDRESS;
 const USDC = {
     address: '0xaf88d065e77c8cC2239327C5EDb3A432268e5831',
     decimals: 6,
-    symbol: 'USDC'
+    symbol: 'USDC',
+    coingeckoId: 'usd-coin'
 };
 
 const SWAP_ROUTER_ADDRESS = '0xE592427A0AEce92De3Edee1F18E0157C05861564';
