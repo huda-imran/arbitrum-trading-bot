@@ -3,6 +3,7 @@ require('dotenv').config();
 const { ethers, JsonRpcProvider } = require('ethers');
 const cron = require('node-cron');
 const axios = require('axios');
+const Bottleneck = require('bottleneck');
 const fs = require('fs');
 const { createSafeClient } = require('@safe-global/sdk-starter-kit');
 const TOKEN_ABI = require('./erc20.json');
@@ -25,6 +26,10 @@ const {
     saveDCAState,
     checkGasBalance
 } = require('./shared');
+
+const limiter = new Bottleneck({
+    minTime: 1500  // ~1 request every 1.5 seconds
+});
 
 const DAILY_DCA_CRON = '0 10 * * *';
 const MONTHLY_SKIM_CRON = '0 0 1 * *';
@@ -88,7 +93,10 @@ async function runMonthlyCron() {
     });
 
     const ids = Object.values(TOKENS).map(t => t.coingeckoId).join(',');
-    const response = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`);
+    const response = await limiter.schedule(() =>
+    axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
+);
+
     const prices = response.data;
 
     let totalValueUSD = 0;
@@ -129,9 +137,11 @@ async function runMonthlyCron() {
 
 
 async function getPrice(id) {
-    const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`;
+    const res = await limiter.schedule(() => axios.get(url));
     return res.data[id].usd;
 }
+
 
 // Manual test triggers
 if (process.argv.includes('--daily')) {

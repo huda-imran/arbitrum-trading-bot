@@ -1,10 +1,10 @@
 {
   "WETH": {
-    "totalCostUSD": 0.12269973333333334,
-    "totalAmount": 0.0000466664024850772
+    "totalCostUSD": 0.14539946666666667,
+    "totalAmount": 0.00005251288626883546
   },
   "WBTC": {
-    "totalCostUSD": 0.022699733333333336,
-    "totalAmount": 1.9132965841214186e-7
+    "totalCostUSD": 0.12572921666666667,
+    "totalAmount": 0.0000010588725879748904
   }
 }
