@@ -92,8 +92,12 @@ async function runMonthlyCron() {
     });
 
     const ids = Object.values(TOKENS).map(t => t.coingeckoId).join(',');
+    const url = `https://api.coingecko.com/api/v3/simple/price`
+    + `?ids=${id}&vs_currencies=usd`
+    + `&x_cg_demo_api_key=${process.env.COINGECKO_DEMO_KEY}`; // or x_cg_pro_api_key
+
     const response = await limiter.schedule(() =>
-        axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
+        axios.get(url)
     );
 
     const prices = response.data;

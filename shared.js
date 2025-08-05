@@ -58,7 +58,11 @@ async function fetchPriceCached(id) {
     if (priceCache[id] && now - priceCache[id].timestamp < 30000) {
         return priceCache[id].price;
     }
-    const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+   const url = `https://api.coingecko.com/api/v3/simple/price`
+        + `?ids=${id}&vs_currencies=usd`
+        + `&x_cg_demo_api_key=${process.env.COINGECKO_DEMO_KEY}`; // or x_cg_pro_api_key
+
+const res = await axios.get(url);
     const price = res.data[id]?.usd;
     priceCache[id] = { price, timestamp: now };
     return price;
