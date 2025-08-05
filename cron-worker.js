@@ -137,7 +137,9 @@ async function runMonthlyCron() {
 }
 
 async function getPrice(id) {
-    const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`;
+     const url = `https://api.coingecko.com/api/v3/simple/price`
+    + `?ids=${id}&vs_currencies=usd`
+    + `&x_cg_demo_api_key=${process.env.COINGECKO_DEMO_KEY}`; // or x_cg_pro_api_key
     const res = await limiter.schedule(() => axios.get(url));
     return res.data[id].usd;
 }
