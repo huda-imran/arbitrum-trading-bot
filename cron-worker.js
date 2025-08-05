@@ -1,15 +1,15 @@
-// cron-worker.js
 require('dotenv').config();
 const { ethers, JsonRpcProvider } = require('ethers');
 const cron = require('node-cron');
 const axios = require('axios');
 const Bottleneck = require('bottleneck');
-const fs = require('fs');
 const { createSafeClient } = require('@safe-global/sdk-starter-kit');
 const TOKEN_ABI = require('./erc20.json');
+
 const {
     executeSwap,
     updateAvgEntry,
+    getAvgEntry,
     TOKENS,
     USDC,
     SAFE_ADDRESS,
@@ -20,16 +20,12 @@ const {
     DCA_DURATION_DAYS,
     DCA_TOKEN_SPLIT,
     MONTHLY_SKIM_RATIO,
-    avgEntryPrice,
-    saveAvgEntry,
     dcaState,
     saveDCAState,
     checkGasBalance
 } = require('./shared');
 
-const limiter = new Bottleneck({
-    minTime: 1500  // ~1 request every 1.5 seconds
-});
+const limiter = new Bottleneck({ minTime: 1500 });
 
 const DAILY_DCA_CRON = '0 10 * * *';
 const MONTHLY_SKIM_CRON = '0 0 1 * *';
@@ -41,10 +37,12 @@ console.log("⏱️ Cron worker started...");
 
 async function runDailyCron() {
     await checkGasBalance();
+
     const provider = new JsonRpcProvider(RPC_URL);
     const usdc = new ethers.Contract(USDC.address, TOKEN_ABI, provider);
     const usdcBal = await usdc.balanceOf(SAFE_ADDRESS);
     const usdcAmount = parseFloat(ethers.formatUnits(usdcBal, USDC.decimals));
+
     console.log(`💰 USDC Balance: $${usdcAmount.toFixed(2)}`);
 
     if (dcaState.counter === 0) {
@@ -57,6 +55,7 @@ async function runDailyCron() {
 
     const btcAmt = daily * DCA_TOKEN_SPLIT;
     const ethAmt = daily * DCA_TOKEN_SPLIT;
+
     console.log(`🔁 Swap Plan → BTC: $${btcAmt.toFixed(2)}, ETH: $${ethAmt.toFixed(2)} (Split Ratio: ${DCA_TOKEN_SPLIT * 100}%)`);
 
     await executeSwap(TOKENS.BTC, 'buy', btcAmt);
@@ -64,10 +63,11 @@ async function runDailyCron() {
 
     const btcPrice = await getPrice('wrapped-bitcoin');
     const ethPrice = await getPrice('weth');
+
     console.log(`📈 Prices → BTC: $${btcPrice}, ETH: $${ethPrice}`);
 
-    updateAvgEntry('WBTC', btcAmt, btcPrice);
-    updateAvgEntry('WETH', ethAmt, ethPrice);
+    await updateAvgEntry('WBTC', btcAmt, btcPrice);
+    await updateAvgEntry('WETH', ethAmt, ethPrice);
 
     dcaState.counter++;
     console.log(`📤 DCA Counter updated: ${dcaState.counter}/${DCA_DURATION_DAYS}`);
@@ -79,7 +79,6 @@ async function runDailyCron() {
 
     saveDCAState();
 }
-
 
 async function runMonthlyCron() {
     await checkGasBalance();
@@ -94,11 +93,10 @@ async function runMonthlyCron() {
 
     const ids = Object.values(TOKENS).map(t => t.coingeckoId).join(',');
     const response = await limiter.schedule(() =>
-    axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
-);
+        axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`)
+    );
 
     const prices = response.data;
-
     let totalValueUSD = 0;
     console.log(`\n📊 Calculating total portfolio value:`);
 
@@ -111,7 +109,6 @@ async function runMonthlyCron() {
         const valueUSD = humanBalance * priceUSD;
 
         console.log(`- ${t.symbol}: ${humanBalance.toFixed(8)} × $${priceUSD.toFixed(2)} = $${valueUSD.toFixed(2)}`);
-
         totalValueUSD += valueUSD;
     }
 
@@ -135,13 +132,11 @@ async function runMonthlyCron() {
     console.log(`✅ Skim TX submitted. Safe Tx Hash: ${txResult.transactions?.safeTxHash || 'N/A'}`);
 }
 
-
 async function getPrice(id) {
     const url = `https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`;
     const res = await limiter.schedule(() => axios.get(url));
     return res.data[id].usd;
 }
-
 
 // Manual test triggers
 if (process.argv.includes('--daily')) {
@@ -157,4 +152,3 @@ if (process.argv.includes('--monthly')) {
         process.exit(0);
     });
 }
-

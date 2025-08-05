@@ -1,10 +1,14 @@
-// shared.js
-const fs = require('fs');
 const { ethers, JsonRpcProvider } = require('ethers');
 const axios = require('axios');
 const { createSafeClient } = require('@safe-global/sdk-starter-kit');
+const mongoose = require('mongoose');
 const SWAP_ROUTER_ABI = require('./ISwapRouter.json');
 const TOKEN_ABI = require('./erc20.json');
+const Entry = require('./models/Entry');
+const DCAState = require('./models/DCA');
+
+mongoose.connect(process.env.MONGO_URI).then(() => console.log('🛢️ Connected to MongoDB'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
 
 const SAFE_ADDRESS = process.env.SAFE_ADDRESS;
 const RPC_URL = process.env.RPC_URL;
@@ -28,7 +32,7 @@ const RED_BUY_RATIO = 0.05;
 const MONTHLY_SKIM_RATIO = 0.0005;
 const SWAP_FEE = 500;
 const SWAP_DEADLINE_SEC = 600;
-const MIN_ETH_THRESHOLD = 0.005; // set threshold
+const MIN_ETH_THRESHOLD = 0.005;
 
 const TOKENS = {
     BTC: {
@@ -48,20 +52,50 @@ const TOKENS = {
     USDC
 };
 
-let avgEntryPrice = fs.existsSync('./avgEntry.json')
-    ? JSON.parse(fs.readFileSync('./avgEntry.json'))
-    : { WETH: { totalCostUSD: 0, totalAmount: 0 }, WBTC: { totalCostUSD: 0, totalAmount: 0 } };
-
-function saveAvgEntry() {
-    fs.writeFileSync('./avgEntry.json', JSON.stringify(avgEntryPrice, null, 2));
+const priceCache = {};
+async function fetchPriceCached(id) {
+    const now = Date.now();
+    if (priceCache[id] && now - priceCache[id].timestamp < 30000) {
+        return priceCache[id].price;
+    }
+    const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${id}&vs_currencies=usd`);
+    const price = res.data[id]?.usd;
+    priceCache[id] = { price, timestamp: now };
+    return price;
 }
 
-let dcaState = fs.existsSync('./dcaState.json')
-    ? JSON.parse(fs.readFileSync('./dcaState.json'))
-    : { counter: 0, pool: 0 };
+async function getAvgEntry(symbol) {
+    const data = await Entry.findOne({ symbol });
+    return data || { totalCostUSD: 0, totalAmount: 0 };
+}
 
-function saveDCAState() {
-    fs.writeFileSync('./dcaState.json', JSON.stringify(dcaState, null, 2));
+async function updateAvgEntry(symbol, costUSD, priceUSD) {
+    const amountToken = costUSD / priceUSD;
+    const existing = await Entry.findOne({ symbol });
+
+    if (existing) {
+        existing.totalCostUSD += costUSD;
+        existing.totalAmount += amountToken;
+        await existing.save();
+    } else {
+        await Entry.create({
+            symbol,
+            totalCostUSD: costUSD,
+            totalAmount: amountToken
+        });
+    }
+}
+
+async function getDCAState() {
+    let state = await DCAState.findOne();
+    if (!state) {
+        state = await DCAState.create({ counter: 0, pool: 0 });
+    }
+    return state;
+}
+
+async function saveDCAState(state) {
+    await DCAState.updateOne({}, state, { upsert: true });
 }
 
 async function checkGasBalance() {
@@ -69,15 +103,12 @@ async function checkGasBalance() {
     const balance = await provider.getBalance(SAFE_ADDRESS);
     const ethBalance = parseFloat(ethers.formatEther(balance));
 
-
     if (ethBalance < MIN_ETH_THRESHOLD) {
         console.log(`⚠️ Low ETH balance on SAFE wallet: ${ethBalance} ETH`);
-        // Optionally send an alert (e.g., email, Telegram, etc.)
     } else {
         console.log(`✅ ETH balance on SAFE wallet is healthy: ${ethBalance} ETH`);
     }
 }
-
 
 async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     console.log(`\n🔁 Starting swap | Action: ${action.toUpperCase()} | Token: ${tokenConfig.symbol} | Amount (USD): $${amountOverrideUSD}`);
@@ -148,18 +179,13 @@ async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     console.log(`🎉 Swap complete for ${action.toUpperCase()} of ${tokenConfig.symbol}`);
 }
 
-
-function updateAvgEntry(symbol, costUSD, priceUSD) {
-    const amountToken = costUSD / priceUSD;
-    avgEntryPrice[symbol].totalCostUSD += costUSD;
-    avgEntryPrice[symbol].totalAmount += amountToken;
-    saveAvgEntry();
-}
-
 module.exports = {
     checkGasBalance,
     executeSwap,
     updateAvgEntry,
+    getAvgEntry,
+    getDCAState,
+    saveDCAState,
     TOKENS,
     USDC,
     SAFE_ADDRESS,
@@ -173,8 +199,5 @@ module.exports = {
     GREEN_SELL_RATIO,
     RED_BUY_RATIO,
     MONTHLY_SKIM_RATIO,
-    avgEntryPrice,
-    saveAvgEntry,
-    dcaState,
-    saveDCAState
+    fetchPriceCached
 };

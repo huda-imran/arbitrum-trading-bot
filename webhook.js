@@ -1,16 +1,13 @@
-// webhook.js
 require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const { ethers, JsonRpcProvider } = require('ethers');
-const fs = require('fs');
-const axios = require('axios');
-const SWAP_ROUTER_ABI = require('./ISwapRouter.json');
 const TOKEN_ABI = require('./erc20.json');
 
 const {
     executeSwap,
     updateAvgEntry,
+    getAvgEntry,
     TOKENS,
     USDC,
     SAFE_ADDRESS,
@@ -18,16 +15,14 @@ const {
     RED_BUY_RATIO,
     GREEN_SELL_THRESHOLD,
     GREEN_SELL_RATIO,
-    avgEntryPrice,
-    saveAvgEntry,
     checkGasBalance,
+    fetchPriceCached,
 } = require('./shared');
 
 const app = express();
 app.use(bodyParser.json());
 
 app.post('/webhook', async (req, res) => {
-
     await checkGasBalance();
 
     console.log('\n📩 Webhook triggered');
@@ -57,8 +52,7 @@ app.post('/webhook', async (req, res) => {
         const action = parseFloat(close) > parseFloat(open) ? 'sell' : 'buy';
         console.log(`📊 Candle action: ${action.toUpperCase()}`);
 
-        const priceRes = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${config.coingeckoId}&vs_currencies=usd`);
-        const currentPrice = priceRes.data[config.coingeckoId]?.usd;
+        const currentPrice = await fetchPriceCached(config.coingeckoId);
         console.log(`💹 Current price of ${config.symbol}: $${currentPrice}`);
 
         if (action === 'buy') {
@@ -68,11 +62,17 @@ app.post('/webhook', async (req, res) => {
             }
             console.log(`🛒 Triggering buy swap for $${redBuyAmount} ${config.symbol}`);
             await executeSwap(config, 'buy', redBuyAmount);
-            updateAvgEntry(config.symbol, redBuyAmount, currentPrice);
+            await updateAvgEntry(config.symbol, redBuyAmount, currentPrice);
             console.log('✅ Buy executed and avg entry updated');
         } else {
             console.log(`📤 Evaluating sell for ${config.symbol}`);
-            const entry = avgEntryPrice[config.symbol];
+            const entry = await getAvgEntry(config.symbol);
+
+            if (!entry || entry.totalAmount === 0) {
+                console.log('⚠️ No avg entry data available. Skipping sell.');
+                return res.status(200).json({ success: false, message: 'No avg entry to calculate gain' });
+            }
+
             const avg = entry.totalCostUSD / entry.totalAmount;
             const gain = ((currentPrice - avg) / avg);
             console.log(`📈 Avg Entry: $${avg.toFixed(2)}, Current: $${currentPrice}, Gain: ${(gain * 100).toFixed(2)}%`);
