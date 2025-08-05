@@ -129,7 +129,14 @@ async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     console.log(`📥 Token In: ${tokenInConfig.symbol}`);
     console.log(`📤 Token Out: ${tokenOutConfig.symbol}`);
 
-    const priceRes = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${tokenInConfig.coingeckoId || 'tether'}&vs_currencies=usd`);
+    const priceRes = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+        params: {
+            ids: tokenInConfig.coingeckoId || 'tether',
+            vs_currencies: 'usd',
+            x_cg_demo_api_key: process.env.COINGECKO_DEMO_API_KEY // or x_cg_pro_api_key if on Pro tier
+        }
+    });
+
     const price = priceRes.data[tokenInConfig.coingeckoId || 'tether'].usd;
     console.log(`💲 Price of ${tokenInConfig.symbol}: $${price}`);
 
