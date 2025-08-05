@@ -22,18 +22,28 @@ const {
 const app = express();
 app.use(bodyParser.json());
 
-app.post('/webhook', async (req, res) => {
+// ✅ Respond immediately to TradingView
+app.post('/webhook', (req, res) => {
+    console.log('📩 Headers:', req.headers);
+    res.status(200).json({ success: true });
+
+    handleWebhook(req.body).catch(err => {
+        console.error('🔥 Error in webhook handler:', err);
+    });
+});
+
+async function handleWebhook(payload) {
     await checkGasBalance();
 
     console.log('\n📩 Webhook triggered');
-    console.log('🔧 Received payload:', req.body);
+    console.log('🔧 Received payload:', payload);
 
-    const { token, open, close } = req.body;
+    const { token, open, close } = payload;
     const config = TOKENS[token];
 
     if (!config) {
         console.log('❌ Unknown token:', token);
-        return res.status(400).json({ error: 'Unknown token' });
+        return;
     }
 
     try {
@@ -58,7 +68,7 @@ app.post('/webhook', async (req, res) => {
         if (action === 'buy') {
             if (redBuyAmount <= 0) {
                 console.log('⚠️ Not enough USDC to buy. Aborting.');
-                return res.status(200).json({ success: false, message: 'Insufficient USDC to buy' });
+                return;
             }
             console.log(`🛒 Triggering buy swap for $${redBuyAmount} ${config.symbol}`);
             await executeSwap(config, 'buy', redBuyAmount);
@@ -70,7 +80,7 @@ app.post('/webhook', async (req, res) => {
 
             if (!entry || entry.totalAmount === 0) {
                 console.log('⚠️ No avg entry data available. Skipping sell.');
-                return res.status(200).json({ success: false, message: 'No avg entry to calculate gain' });
+                return;
             }
 
             const avg = entry.totalCostUSD / entry.totalAmount;
@@ -86,7 +96,7 @@ app.post('/webhook', async (req, res) => {
                 console.log(`📦 Token balance: ${tokenBalance}`);
                 if (amountToSell <= 0) {
                     console.log('⚠️ Token balance is zero. Aborting sell.');
-                    return res.status(200).json({ success: false, message: 'No balance to sell' });
+                    return;
                 }
 
                 console.log(`🚀 Selling ${amountToSell} ${config.symbol}`);
@@ -97,12 +107,11 @@ app.post('/webhook', async (req, res) => {
             }
         }
 
-        res.status(200).json({ success: true, action });
+        console.log(`✅ Action complete: ${action}`);
     } catch (err) {
         console.error('🔥 Swap failed:', err.message);
-        res.status(500).json({ error: err.message });
     }
-});
+}
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
