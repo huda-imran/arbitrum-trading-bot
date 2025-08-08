@@ -65,11 +65,13 @@ async function runDailyCron() {
 
     console.log(`🔁 Swap Plan → BTC: $${btcAmt.toFixed(2)}, ETH: $${ethAmt.toFixed(2)} (Split Ratio: ${DCA_TOKEN_SPLIT * 100}%)`);
 
-    await executeSwap(TOKENS.BTC, 'buy', btcAmt);
-    await executeSwap(TOKENS.ETH, 'buy', ethAmt);
 
     const btcPrice = await getPrice('wrapped-bitcoin');
     const ethPrice = await getPrice('weth');
+
+    await executeSwap(TOKENS.BTC, 'buy', btcAmt);
+    await executeSwap(TOKENS.ETH, 'buy', ethAmt);
+
 
     console.log(`📈 Prices → BTC: $${btcPrice}, ETH: $${ethPrice}`);
 
