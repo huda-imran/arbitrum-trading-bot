@@ -6,6 +6,15 @@ const SWAP_ROUTER_ABI = require('./ISwapRouter.json');
 const TOKEN_ABI = require('./erc20.json');
 const Entry = require('./models/Entry');
 const DCAState = require('./models/DCA');
+const axiosRetry = require('axios-retry');
+
+axiosRetry(axios, {
+  retries: 3,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) => {
+    return error.response?.status === 429 || error.code === 'ECONNABORTED' || axiosRetry.isNetworkOrIdempotentRequestError(error);
+  }
+});
 
 mongoose.connect(process.env.MONGO_URI).then(() => console.log('🛢️ Connected to MongoDB'))
   .catch(err => console.error('❌ MongoDB connection error:', err));
@@ -129,13 +138,19 @@ async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     console.log(`📥 Token In: ${tokenInConfig.symbol}`);
     console.log(`📤 Token Out: ${tokenOutConfig.symbol}`);
 
-    const priceRes = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
-        params: {
-            ids: tokenInConfig.coingeckoId || 'tether',
-            vs_currencies: 'usd',
-            x_cg_demo_api_key: process.env.COINGECKO_DEMO_API_KEY // or x_cg_pro_api_key if on Pro tier
-        }
-    });
+    // const priceRes = await axios.get('https://api.coingecko.com/api/v3/simple/price', {
+    //     params: {
+    //         ids: tokenInConfig.coingeckoId || 'tether',
+    //         vs_currencies: 'usd',
+    //         x_cg_demo_api_key: process.env.COINGECKO_DEMO_API_KEY // or x_cg_pro_api_key if on Pro tier
+    //     }
+    // });
+
+    const url = `https://api.coingecko.com/api/v3/simple/price`
+        + `?ids=${id}&vs_currencies=usd`
+        + `&x_cg_demo_api_key=${process.env.COINGECKO_DEMO_KEY}`; // or x_cg_pro_api_key
+
+    const priceRes = await axios.get(url);
 
     const price = priceRes.data[tokenInConfig.coingeckoId || 'tether'].usd;
     console.log(`💲 Price of ${tokenInConfig.symbol}: $${price}`);
