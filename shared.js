@@ -6,7 +6,7 @@ const SWAP_ROUTER_ABI = require('./ISwapRouter.json');
 const TOKEN_ABI = require('./erc20.json');
 const Entry = require('./models/Entry');
 const DCAState = require('./models/DCA');
-const axiosRetry = require('axios-retry');
+const axiosRetry = require('axios-retry').default;
 
 axiosRetry(axios, {
   retries: 3,
@@ -147,7 +147,7 @@ async function executeSwap(tokenConfig, action, amountOverrideUSD) {
     // });
 
     const url = `https://api.coingecko.com/api/v3/simple/price`
-        + `?ids=${id}&vs_currencies=usd`
+        + `?ids=${tokenInConfig.coingeckoId}&vs_currencies=usd`
         + `&x_cg_demo_api_key=${process.env.COINGECKO_DEMO_KEY}`; // or x_cg_pro_api_key
 
     const priceRes = await axios.get(url);
