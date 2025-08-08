@@ -5,6 +5,8 @@ const axios = require('axios');
 const Bottleneck = require('bottleneck');
 const { createSafeClient } = require('@safe-global/sdk-starter-kit');
 const TOKEN_ABI = require('./erc20.json');
+const DCAState = require('./models/DCA'); // Mongo model
+
 
 const {
     executeSwap,
@@ -45,6 +47,11 @@ async function runDailyCron() {
 
     console.log(`💰 USDC Balance: $${usdcAmount.toFixed(2)}`);
 
+    let dcaState = await DCAState.findOne({ wallet: SAFE_ADDRESS });
+    if (!dcaState) {
+        dcaState = new DCAState({ wallet: SAFE_ADDRESS, counter: 0, pool: 0 });
+    }
+
     if (dcaState.counter === 0) {
         dcaState.pool = usdcAmount * DCA_SPLIT_RATIO;
         console.log(`📊 New DCA Pool Set: $${dcaState.pool.toFixed(2)} (${(DCA_SPLIT_RATIO * 100).toFixed(1)}% of USDC)`);
@@ -77,7 +84,7 @@ async function runDailyCron() {
         console.log(`♻️ DCA cycle complete. Counter reset.`);
     }
 
-    saveDCAState();
+    await dcaState.save();
 }
 
 async function runMonthlyCron() {
